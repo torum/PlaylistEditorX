@@ -1,0 +1,129 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:PlaylistEditorX.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        x:Class="PlaylistEditorX.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        xmlns:models="using:PlaylistEditorX.Models"
+        WindowDecorations="Full"
+		ExtendClientAreaToDecorationsHint="True"
+        Title="PlaylistEditorX">
+
+    <Design.DataContext>
+        <!-- This only sets the DataContext for the previewer in an IDE,
+             to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
+        <vm:MainWindowViewModel/>
+    </Design.DataContext>
+
+    <Window.Styles>
+        <Style Selector="ListBoxItem:pointerover">
+            <Setter Property="Background" Value="#224488FF"/>
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="Auto,*">
+        <!-- Title Bar -->
+        <Border Grid.Row="0" WindowDecorationProperties.ElementRole="TitleBar">
+
+        </Border>
+
+        <!-- Menu -->
+        <Menu Grid.Row="0" WindowDecorationProperties.ElementRole="User" HorizontalAlignment="Left">
+            <MenuItem Header="_File">
+                <MenuItem Header="_New" Command="{Binding NewFileCommand}" />
+                <MenuItem Header="_Open TXT" Command="{Binding OpenTxtCommand}" />
+                <MenuItem Header="Open _M3U" Command="{Binding OpenM3uCommand}" />
+                <MenuItem Header="Open _XSPF" Command="{Binding OpenXspfCommand}" />
+                <Separator />
+                <MenuItem Header="Save M3U (ANSI)" Command="{Binding SaveM3uAnsiCommand}" />
+                <MenuItem Header="Save M3U (UTF-8)" Command="{Binding SaveM3uUtf8Command}" />
+                <MenuItem Header="Save M3U (UTF-8 BOM)" Command="{Binding SaveM3uBomCommand}" />
+                <MenuItem Header="Save XSPF" Command="{Binding SaveXspfCommand}" />
+                <MenuItem Header="Save iTunes TXT" Command="{Binding SaveITunesTxtCommand}" />
+            </MenuItem>
+
+            <MenuItem Header="_Edit">
+                <MenuItem Header="Add Files to Playlist" Command="{Binding AddFilesToPlaylistCommand}" />
+                <MenuItem Header="Remove Selected" Command="{Binding RemoveFilesFromPlaylistCommand}" />
+                <MenuItem Header="Copy Selected Path" Command="{Binding CopySelectedPathCommand}" />
+                <MenuItem Header="Edit Path/URI" Command="{Binding EditPathUriCommand}" />
+                <MenuItem Header="Replace..." Command="{Binding ReplaceAllCommand}" />
+            </MenuItem>
+
+            <MenuItem Header="_Tools">
+                <!-- TODO:
+                <MenuItem Header="Convert to M3U" Command="{Binding ConvertToM3uCommand}" />
+                -->
+                <MenuItem Header="Convert to XSPF" Command="{Binding ConvertToXspfCommand}" />
+            </MenuItem>
+        </Menu>
+
+        <!-- Main content -->
+        <Grid Grid.Row="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <ListBox x:Name="PlaylistListBox"
+                    ItemsSource="{Binding Items}"
+                    SelectedItem="{Binding SelectedItem}"
+                    DragDrop.AllowDrop="True"
+                    DragDrop.DragOver="ListBox_DragOver"
+                    DragDrop.Drop="ListBox_Drop"
+                    PointerMoved="PlaylistListBox_PointerMoved"
+                    PointerPressed="PlaylistListBox_PointerPressed"
+                    PointerReleased="PlaylistListBox_PointerReleased"
+                    KeyDown="PlaylistListBox_KeyDown">
+				<ListBox.ItemsPanel>
+					<ItemsPanelTemplate>
+						<VirtualizingStackPanel/>
+					</ItemsPanelTemplate>
+				</ListBox.ItemsPanel>
+                <ListBox.Styles>
+                    <Style Selector="ListBoxItem" x:DataType="models:PlaylistItem">
+						<Setter Property="Padding" Value="0,0,0,0"/>
+						<Setter Property="VerticalAlignment" Value="Center"/>
+                        <Setter Property="ContextFlyout">
+							<Setter.Value>
+                                <MenuFlyout>
+                                    <MenuItem Header="Copy Selected Path" Command="{Binding Path=$parent[ListBox].((vm:MainWindowViewModel)DataContext).CopySelectedPathCommand   }" CommandParameter="{Binding $parent[ListBox].SelectedItem}"/>
+                                    <MenuItem Header="Remove Selected"
+                                                Command="{Binding Path=$parent[ListBox].((vm:MainWindowViewModel)DataContext).RemoveFilesFromPlaylistCommand}" CommandParameter="{Binding $parent[ListBox].SelectedItem}" />
+                                    <MenuItem Header="Edit Path/URI"
+                                                Command="{Binding Path=$parent[ListBox].((vm:MainWindowViewModel)DataContext).EditPathUriCommand}" CommandParameter="{Binding $parent[ListBox].SelectedItem}" />
+                                    <MenuItem Header="Open Containing Folder"
+                                                Command="{Binding Path=$parent[ListBox].((vm:MainWindowViewModel)DataContext).OpenContainingFolderCommand}" CommandParameter="{Binding $parent[ListBox].SelectedItem}" />
+						        </MenuFlyout>
+							</Setter.Value>
+						</Setter>
+                    </Style>
+                </ListBox.Styles>
+
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <Grid ColumnDefinitions="Auto,*,Auto" Margin="4">
+                            <TextBlock Grid.Column="0" Text="{Binding Index}" Margin="6,6,12,6" />
+                            <TextBlock Grid.Column="1" Text="{Binding FilePath}" Margin="6,6,12,6" />
+                            <TextBlock Grid.Column="2" Text="{Binding OriginalIndex}" IsVisible="False"/>
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+            <!-- Status bar + progress
+            <StatusBar Grid.Row="1">
+                <StatusBarItem>
+                    <TextBlock Text="{Binding AppVersion}" />
+                </StatusBarItem>
+                <StatusBarItem>
+                    <ProgressBar Width="120"
+                                 IsIndeterminate="{Binding IsBusy}" />
+                </StatusBarItem>
+            </StatusBar>
+            -->
+        </Grid>
+    </Grid>
+
+</Window>
