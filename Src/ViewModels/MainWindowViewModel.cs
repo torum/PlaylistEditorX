@@ -29,6 +29,9 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly Services.IStorageService _storageService;
     private readonly Services.IDialogService _dialogService;
 
+    public static readonly HashSet<string> PlaylistExtensions = new(StringComparer.OrdinalIgnoreCase) { ".txt", ".xspf", ".m3u", ".m3u8" };
+
+
     internal MainWindowViewModel(Services.IStorageService storageService, Services.IDialogService dialogService)
     {
         _storageService = storageService;
@@ -435,7 +438,7 @@ public partial class MainWindowViewModel : ObservableObject
         }
 
         // Rebuild RawLines to match new order
-        var newRaw = Items.Select(x => RawLines[x.OriginalIndex - 1]).ToList();
+        var newRaw = Items.Select(x => RawLines[x.Index - 1]).ToList();
 
         RawLines.Clear();
         foreach (var line in newRaw)
@@ -1005,6 +1008,73 @@ public partial class MainWindowViewModel : ObservableObject
         CanSaveXspf = false;
     }
 
+    public void ClearPlaylist()
+    {
+        RawLines.Clear();
+        Items.Clear();
+        IsDirty = false;
+        IsRearrangedOrder = false;
+        IsLocationEdited = false;
+        CurrentFormat = PlaylistType.New;
+        StatusTextLeft = "New";
+        StatusTextRight = "";
+        // Disable commands
+        DisableAllCommands();
+    }
+
+    public async Task FilesDroped(IEnumerable<string?> files)
+    {
+        if (IsBusy) return;
+        if (files is null) return;
+        if (!files.Any()) return;
+
+        if (IsDirty)
+        {
+            var confirm = await _dialogService.ShowConfirmAsync(
+                "Playlist has been changed",
+                "Do you wish to discard changes and proceed?"
+            );
+
+            if (!confirm)
+                return;
+        }
+
+        ClearPlaylist();
+
+        if (files.Count() == 1)
+        {
+            //PlaylistExtensions
+            var extension = System.IO.Path.GetExtension(files.First());
+            if (!string.IsNullOrEmpty(extension))
+            {
+                if (PlaylistExtensions.Contains(extension))
+                {
+                    if (extension.Equals(".txt"))
+                    {
+                        OpenITunesTxt(files.First()!);
+                    }
+                    else if (extension.Equals(".xspf"))
+                    {
+                        OpenXspf(files.First()!);
+                    }
+                    else if (extension.Equals(".m3u") || extension.Equals(".m3u8"))
+                    {
+                        OpenM3u(files.First()!);
+                    }
+                    else
+                    {
+                        AddFilesToPlaylist(files.Where(f => f != null).Select(f => f!).ToArray());
+                    }
+                }
+            }
+        }
+        else
+        {
+            AddFilesToPlaylist(files.Where(f => f != null).Select(f => f!).ToArray());
+        }
+
+    }
+
     [RelayCommand]
     private async Task OpenTxtAsync()
     {
@@ -1214,6 +1284,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     public void OpenXspf(string filename)
     {
+        Debug.WriteLine($"OpenXspf: {filename}");
         IsBusy = true;
         StatusTextLeft = "XSPF";
         StatusTextRight = "";
@@ -1222,32 +1293,55 @@ public partial class MainWindowViewModel : ObservableObject
         RawLines.Clear();
         Items.Clear();
 
-        var doc = XDocument.Load(filename);
-
-        var tracks = doc.Descendants("track");
-
-        int index = 1;
-
-        foreach (var track in tracks)
+        try
         {
-            var loc = track.Element("location")?.Value;
-            if (loc == null) continue;
-
-            RawLines.Add(loc);
-
-            Items.Add(new PlaylistItem
+            var doc = XDocument.Load(filename);
+            if (doc.Root is null)
             {
-                Index = index,
-                FilePath = loc,
-                OriginalIndex = index
-            });
+                IsBusy = false;
+                StatusTextLeft = "XSPF";
+                StatusTextRight = "XSPF file has no root element.";
+                Debug.WriteLine("XSPF file has no root element.");
+                return;
+            }
 
-            StatusTextRight = $"Processing... [{index}]";
-            index++;
+            XNamespace ns = "http://xspf.org/ns/0/";
+
+            var tracks = doc.Root.Descendants(ns + "track");
+            Debug.WriteLine($"Found {tracks.Count()} tracks in XSPF file.");
+
+            int index = 1;
+
+            foreach (var track in tracks)
+            {
+                var loc = track.Element(ns + "location")?.Value;
+                if (loc == null) continue;
+
+                RawLines.Add(loc);
+
+                Items.Add(new PlaylistItem
+                {
+                    Index = index,
+                    FilePath = loc,
+                    OriginalIndex = index
+                });
+
+                StatusTextRight = $"Processing... [{index}]";
+                index++;
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusTextLeft = "XSPF";
+            StatusTextRight = $"Error: {ex.Message}";
+            Debug.WriteLine($"Error opening XSPF file: {ex.Message}");
+            return;
+        }
+        finally
+        {
+            IsBusy = false;
         }
 
-        StatusTextRight = "";
-        IsBusy = false;
 
         // Enable/disable commands
         CanSaveITunesTxt = false;

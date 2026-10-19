@@ -9,6 +9,7 @@ using Avalonia.VisualTree;
 using PlaylistEditorX.Models;
 using PlaylistEditorX.ViewModels;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
@@ -27,6 +28,10 @@ public partial class MainWindow : Window
 
     private InsertionLineAdorner? _insertionLine;
     private AdornerLayer? _adornerLayer;
+
+    #region = Public ==
+
+    #endregion
 
     public MainWindow()
     {
@@ -226,7 +231,7 @@ public partial class MainWindow : Window
             return;
         }
 
-
+        // Handle file drops from outside of the application.
         if (e.DataTransfer.Formats.Contains(DataFormat.File))
         {
             var files = e.DataTransfer.TryGetFiles();
@@ -237,19 +242,14 @@ public partial class MainWindow : Window
                 var localPaths = files
                     .Select(file => file.TryGetLocalPath())
                     .Where(path => path != null)
-                    .ToArray();
+                    ;//.ToArray();
 
-                if (localPaths.Length > 0)
-                {
-                    vm.AddFilesToPlaylist(localPaths!);
-                }
+                await vm.FilesDroped(localPaths);
             }
 
             e.Handled = true;
             return;
         }
-
-
     }
 
     private void ShowInsertionLine(double y)

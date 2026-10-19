@@ -112,17 +112,22 @@
                     </DataTemplate>
                 </ListBox.ItemTemplate>
             </ListBox>
-            <!-- Status bar + progress
-            <StatusBar Grid.Row="1">
-                <StatusBarItem>
-                    <TextBlock Text="{Binding AppVersion}" />
-                </StatusBarItem>
-                <StatusBarItem>
-                    <ProgressBar Width="120"
-                                 IsIndeterminate="{Binding IsBusy}" />
-                </StatusBarItem>
-            </StatusBar>
-            -->
+            <!-- Status bar + progress -->
+            <Border Grid.Row="1">
+                <StackPanel Orientation="Horizontal">
+                    <Border>
+                        <TextBlock Text="{Binding StatusTextLeft}" />
+                    </Border>
+                    <Border>
+                        <TextBlock Text="{Binding StatusTextRight}" />
+                    </Border>
+                    <Border>
+                        <ProgressBar Width="120"
+                                     IsIndeterminate="{Binding IsBusy}" />
+                    </Border>
+                </StackPanel>
+
+            </Border>
         </Grid>
     </Grid>
 
