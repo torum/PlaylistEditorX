@@ -935,7 +935,7 @@ public partial class MainWindowViewModel : ObservableObject
                 return;
         }
 
-        await _storageService.SelectFilesAsync("Select files to add to new playlist", new[] { "*.*" }).ContinueWith(task =>
+        await _storageService.SelectFilesAsync("Select files to add to new playlist", new[] { "*.*" }, true).ContinueWith(task =>
         {
             if (task.Result != null && task.Result.Count > 0)
             {
@@ -945,7 +945,7 @@ public partial class MainWindowViewModel : ObservableObject
         });
 
         /*
-        await _storageService.OpenFileAsync("Select files to add to new playlist", new[] { "*.*" }).ContinueWith(task =>
+        await _storageService.OpenFileAsync("Select files to add to new playlist", new[] { "*.txt" }).ContinueWith(task =>
         {
             if (task.Result != null)
             {
@@ -956,8 +956,8 @@ public partial class MainWindowViewModel : ObservableObject
                     using (var reader = new StreamReader(stream))
                     {
                         var content = reader.ReadToEnd();
-                        var files = content.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
-                        CreateNew(files);
+                        var file = content.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+                        
                     }
                 }
             }
@@ -1009,33 +1009,29 @@ public partial class MainWindowViewModel : ObservableObject
     private async Task OpenTxtAsync()
     {
         if (IsBusy) return;
-        /*
+
         if (IsDirty)
         {
-            var confirm = await ShowConfirmAsync(
+            var confirm = await _dialogService.ShowConfirmAsync(
                 "Playlist has been changed",
-                "Do you wish to discard changes?"
+                "Do you wish to discard changes and proceed?"
             );
 
             if (!confirm)
                 return;
         }
 
-        var dialog = new OpenFileDialog
+        await _storageService.SelectFilesAsync("Select files to add to new playlist", new[] { "*.*" }, false).ContinueWith(task =>
         {
-            AllowMultiple = false,
-            Filters = { new FileDialogFilter { Name = "Text", Extensions = { "txt" } } }
-        };
+            if (task.Result != null && task.Result.Count > 0)
+            {
+                var files = task.Result.ToArray();
 
-        var result = await dialog.ShowAsync(GetWindow());
-        if (result == null || result.Length == 0)
-            return;
+                if (!File.Exists(files[0])) return;
+                OpenITunesTxt(files[0]);
+            }
+        });
 
-        var file = result[0];
-        if (!File.Exists(file)) return;
-
-        OpenITunesTxt(file);
-        */
     }
 
     public void OpenITunesTxt(string filename)
@@ -1054,10 +1050,16 @@ public partial class MainWindowViewModel : ObservableObject
 
         var lines = utf8.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
 
-        int index = 1;
+        int index = 0;
 
         foreach (var line in lines)
         {
+            if (index == 0)
+            {
+                index++;
+                continue;
+            }
+
             var cols = line.Split('\t');
 
             if (cols.Length < 31)

@@ -18,7 +18,7 @@ public class StorageService : IStorageService
         _mainWindow = mainWindow;
     }
 
-    public async Task<IReadOnlyList<string>> SelectFilesAsync(string title, string[] extensions)
+    public async Task<IReadOnlyList<string>> SelectFilesAsync(string title, string[] extensions, bool allowMultiple)
     {
         var topLevel = TopLevel.GetTopLevel(_mainWindow);
         if (topLevel == null) return System.Array.Empty<string>();
@@ -26,7 +26,7 @@ public class StorageService : IStorageService
         var options = new FilePickerOpenOptions
         {
             Title = title,
-            AllowMultiple = true, // Enabled multi-select as requested
+            AllowMultiple = allowMultiple, // Enabled multi-select as requested
             FileTypeFilter = new[]
             {
                 new FilePickerFileType("Allowed Files") { Patterns = extensions }

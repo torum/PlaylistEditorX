@@ -99,6 +99,9 @@ public partial class MainWindow : Window
             ? "DoDragDropAsync result = Succuses (Move)"
             : "DoDragDropAsync result = Fail (None)");
 
+        _isPressedAndMoved = false;
+        _isPressed = false;
+
         RemoveInsertionLine();
     }
 

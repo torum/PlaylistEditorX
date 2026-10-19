@@ -12,7 +12,7 @@ public interface IStorageService
     Task<(Stream Stream, string Name)?> OpenFileAsync(string title, string[] extensions);
 
     // Returns a list of absolute file paths, or an empty list if cancelled
-    Task<IReadOnlyList<string>> SelectFilesAsync(string title, string[] extensions);
+    Task<IReadOnlyList<string>> SelectFilesAsync(string title, string[] extensions, bool allowMultiple);
 
     Task CopyTextToClipboardAsync(string text);
 }
