@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 
 namespace PlaylistEditorX.Services;
 
-internal interface IConfigurationService
+public interface IConfigurationService
 {
     void Initialize(string configFilePath);
     Task<Models.Configuration> LoadConfigurationAsync();

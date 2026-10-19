@@ -23,7 +23,7 @@ namespace PlaylistEditorX.Services;
         WinRestoreTop = mw.RestoreTop;
  */
 
-internal sealed class ConfigurationService : IConfigurationService
+public sealed class ConfigurationService : IConfigurationService
 {
     private bool _isInitialized;
     private bool _isConfigLoaded;

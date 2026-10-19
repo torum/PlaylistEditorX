@@ -53,9 +53,6 @@ public partial class MainWindowViewModel : ObservableObject
         // Disable commands initially (matching Pascal actXXX.Enabled := false)
         DisableAllCommands();
 
-        // Load config file
-        LoadConfig();
-
         // Handle command-line file open
         TryOpenStartupFile();
     }
@@ -169,32 +166,6 @@ public partial class MainWindowViewModel : ObservableObject
         config.LastOpenedDirectory = _lastOpenedDirectory;
     }
 
-    public void OnWindowOpened()
-    {
-        // Restore window state if config exists
-        if (ConfigExists())
-        {
-            RestoreFormState();
-        }
-
-        // (Optional) Welcome dialog logic can be added later
-    }
-
-    public void OnWindowClosing()
-    {
-        // Save window state
-        StoreFormState();
-    }
-
-    public void OnWindowClosed()
-    {
-        IsCloseRequested = true;
-
-        // Free resources
-        Items.Clear();
-        //xDocMain = null;
-    }
-
     #endregion
 
     #region == Path Conversion ==
@@ -213,7 +184,7 @@ public partial class MainWindowViewModel : ObservableObject
             else
             {
                 sb.Append('%');
-                sb.Append(((int)ch).ToString("X2"));
+                sb.Append(((int)ch).ToString("X2", CultureInfo.InvariantCulture));
             }
         }
 
@@ -247,7 +218,7 @@ public partial class MainWindowViewModel : ObservableObject
     {
         string s = strPath;
 
-        if (s.StartsWith("file:///"))
+        if (s.StartsWith("file:///", StringComparison.OrdinalIgnoreCase))
         {
             s = s.Replace("file:///", "");
 
@@ -262,7 +233,7 @@ public partial class MainWindowViewModel : ObservableObject
                 s = "/" + s;
             }
         }
-        else if (s.StartsWith("file://"))
+        else if (s.StartsWith("file://", StringComparison.OrdinalIgnoreCase))
         {
             // Windows UNC
             s = s.Replace("file://", "\\\\");
@@ -282,7 +253,7 @@ public partial class MainWindowViewModel : ObservableObject
         string s = strUri;
 
         // Windows UNC: \\server\share
-        if (s.StartsWith("\\\\"))
+        if (s.StartsWith("\\\\", StringComparison.OrdinalIgnoreCase))
         {
             s = s.Replace("\\", "/");
             s = UrlEncode(s);
@@ -290,14 +261,14 @@ public partial class MainWindowViewModel : ObservableObject
         }
 
         // Windows relative path: \folder\file
-        if (s.StartsWith("\\"))
+        if (s.StartsWith("\\", StringComparison.OrdinalIgnoreCase))
         {
             s = s.Replace("\\", "/");
             return UrlEncode(s);
         }
 
         // macOS iTunes: Macintosh HD:Users:Toru:Music:...
-        if (s.StartsWith("Macintosh HD:"))
+        if (s.StartsWith("Macintosh HD:", StringComparison.OrdinalIgnoreCase))
         {
             s = s.Replace("Macintosh HD:", "");
             s = s.Replace(":", "/");
@@ -306,7 +277,7 @@ public partial class MainWindowViewModel : ObservableObject
         }
 
         // Windows drive letter: C:\path
-        if (s.Length >= 3 && s[1] == ':' && s.Contains("\\"))
+        if (s.Length >= 3 && s[1] == ':' && s.Contains(@"\\", StringComparison.OrdinalIgnoreCase))
         {
             s = s.Replace("\\", "/");
             s = UrlEncode(s);
@@ -314,20 +285,20 @@ public partial class MainWindowViewModel : ObservableObject
         }
 
         // Windows relative path with backslashes
-        if (s.Contains("\\"))
+        if (s.Contains(@"\\", StringComparison.OrdinalIgnoreCase))
         {
             s = s.Replace("\\", "/");
             return UrlEncode(s);
         }
 
         // Already a URI
-        if (s.Contains("://") || s.Contains(":/") || s.Contains("//") || s.Contains("#"))
+        if (s.Contains("://") || s.Contains(":/") || s.Contains("//") || s.Contains('#', StringComparison.OrdinalIgnoreCase))
         {
             return s;
         }
 
         // Unix absolute path: /home/user/file
-        if (s.StartsWith("/"))
+        if (s.StartsWith("/", StringComparison.OrdinalIgnoreCase))
         {
             s = "file://" + s;
             return UrlEncode(s);
@@ -341,7 +312,7 @@ public partial class MainWindowViewModel : ObservableObject
     {
         string s = strUri;
 
-        if (s.StartsWith("Macintosh HD:"))
+        if (s.StartsWith("Macintosh HD:", StringComparison.OrdinalIgnoreCase))
         {
             s = s.Replace("Macintosh HD:", "");
             s = s.Replace(":", "/");
@@ -424,25 +395,6 @@ public partial class MainWindowViewModel : ObservableObject
         {
             OpenITunesTxt(file);
         }
-    }
-
-    #endregion
-
-    #region == Config Handling ==
-
-    // Placeholder until you paste the Pascal versions
-    private void RestoreFormState() { }
-    private void StoreFormState() { }
-
-    private bool ConfigExists()
-    {
-        return System.IO.File.Exists(ConfigFilePath);
-    }
-
-    private void LoadConfig()
-    {
-        // You will implement this once you paste XMLConfig1 usage
-        // For now, placeholder
     }
 
     #endregion
@@ -670,12 +622,6 @@ public partial class MainWindowViewModel : ObservableObject
         IsRearrangedOrder = true;
     }
 
-
-    [RelayCommand]
-    private void RemoveFilesFromPlaylist()
-    {
-    }
-
     #endregion
 
     #region == Find and Replace ==
@@ -784,7 +730,7 @@ public partial class MainWindowViewModel : ObservableObject
         {
             var line = RawLines[i];
 
-            if (!line.StartsWith("#") && !string.IsNullOrWhiteSpace(line))
+            if (!line.StartsWith("#", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(line))
             {
                 var replaced = line.Replace(find, replace, StringComparison.Ordinal);
                 newLines.Add(replaced);
@@ -874,11 +820,6 @@ public partial class MainWindowViewModel : ObservableObject
     #endregion
 
     #region == Edit Path ==
-
-    [RelayCommand]
-    private void EditPathUri()
-    {
-    }
 
     [RelayCommand]
     public void EditSelectedPath(string newValue)
@@ -992,6 +933,8 @@ public partial class MainWindowViewModel : ObservableObject
                 return;
         }
 
+#pragma warning disable CA1861 // Avoid constant arrays as arguments
+#pragma warning disable IDE0300 // Simplify collection initialization
         await _storageService.SelectFilesAsync("Select files to add to new playlist", new[] { "*.*" }, true).ContinueWith(task =>
         {
             if (task.Result != null && task.Result.Count > 0)
@@ -1000,6 +943,8 @@ public partial class MainWindowViewModel : ObservableObject
                 CreateNew(files);
             }
         });
+#pragma warning restore IDE0300 // Simplify collection initialization
+#pragma warning restore CA1861 // Avoid constant arrays as arguments
 
         /*
         await _storageService.OpenFileAsync("Select files to add to new playlist", new[] { "*.txt" }).ContinueWith(task =>
@@ -1091,17 +1036,17 @@ public partial class MainWindowViewModel : ObservableObject
             var extension = System.IO.Path.GetExtension(files.First());
             if (!string.IsNullOrEmpty(extension))
             {
-                if (PlaylistExtensions.Contains(extension))
+                if (PlaylistExtensions.Contains(extension) && files.First() != null)
                 {
-                    if (extension.Equals(".txt"))
+                    if (extension.Equals(".txt", StringComparison.OrdinalIgnoreCase))
                     {
                         OpenITunesTxt(files.First()!);
                     }
-                    else if (extension.Equals(".xspf"))
+                    else if (extension.Equals(".xspf", StringComparison.OrdinalIgnoreCase))
                     {
                         OpenXspf(files.First()!);
                     }
-                    else if (extension.Equals(".m3u") || extension.Equals(".m3u8"))
+                    else if (extension.Equals(".m3u", StringComparison.OrdinalIgnoreCase) || extension.Equals(".m3u8", StringComparison.OrdinalIgnoreCase))
                     {
                         OpenM3u(files.First()!);
                     }
@@ -1109,6 +1054,10 @@ public partial class MainWindowViewModel : ObservableObject
                     {
                         AddFilesToPlaylist(files.Where(f => f != null).Select(f => f!).ToArray());
                     }
+
+                    var dir = System.IO.Path.GetDirectoryName(files.First());
+                    if (dir is not null)
+                        _lastOpenedDirectory = dir;
                 }
             }
         }
@@ -1135,6 +1084,7 @@ public partial class MainWindowViewModel : ObservableObject
                 return;
         }
 
+#pragma warning disable CA1861 // Avoid constant arrays as arguments
         await _storageService.SelectFilesAsync("Select files to add to new playlist", new[] { "*.*" }, false).ContinueWith(task =>
         {
             if (task.Result != null && task.Result.Count > 0)
@@ -1145,6 +1095,7 @@ public partial class MainWindowViewModel : ObservableObject
                 OpenITunesTxt(files[0]);
             }
         });
+#pragma warning restore CA1861 // Avoid constant arrays as arguments
 
     }
 
@@ -1162,7 +1113,9 @@ public partial class MainWindowViewModel : ObservableObject
         var text = File.ReadAllText(filename, Encoding.Unicode);
         var utf8 = Encoding.UTF8.GetString(Encoding.Convert(Encoding.Unicode, Encoding.UTF8, Encoding.Unicode.GetBytes(text)));
 
-        var lines = utf8.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
+#pragma warning disable CA1861 // Avoid constant arrays as arguments
+        var lines = utf8.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+#pragma warning restore CA1861 // Avoid constant arrays as arguments
 
         int index = 0;
 
@@ -1269,7 +1222,7 @@ public partial class MainWindowViewModel : ObservableObject
 
         foreach (var line in lines)
         {
-            if (line.StartsWith("#") || string.IsNullOrWhiteSpace(line))
+            if (line.StartsWith("#", StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(line))
                 continue;
 
             RawLines.Add(line);
@@ -1534,7 +1487,7 @@ public partial class MainWindowViewModel : ObservableObject
         {
             var line = RawLines[item.OriginalIndex - 1];
 
-            if (line.StartsWith("#") || string.IsNullOrWhiteSpace(line))
+            if (line.StartsWith("#", StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(line))
                 continue;
 
             var uri = ConvertLocalPathToUri(line);
@@ -1601,7 +1554,7 @@ public partial class MainWindowViewModel : ObservableObject
         {
             var line = RawLines[item.OriginalIndex - 1];
 
-            if (line.StartsWith("#") || string.IsNullOrWhiteSpace(line))
+            if (line.StartsWith("#", StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(line))
                 continue;
 
             var uri = ConvertLocalPathToUri(line);

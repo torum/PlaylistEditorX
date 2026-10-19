@@ -40,11 +40,11 @@ public partial class App : Application
         {
             RegisterGlobalExceptionHandlers();
 
-            Services.IConfigurationService configurationService = new Services.ConfigurationService();
+            Services.ConfigurationService configurationService = new();
             configurationService.Initialize(AppConfigFilePath);
             await configurationService.LoadConfigurationAsync();
-            Services.IStorageService storageService = new Services.StorageService();
-            Services.IDialogService dialogService = new Services.DialogService();
+            Services.StorageService storageService = new();
+            Services.DialogService dialogService = new();
 
             desktop.MainWindow = new MainWindow(configurationService)
             {

@@ -17,9 +17,9 @@ using System.Xml.Linq;
 
 namespace PlaylistEditorX.Views;
 
-internal partial class MainWindow : Window
+public partial class MainWindow : Window
 {
-    private readonly Services.IConfigurationService _configurationService;
+    private readonly Services.IConfigurationService? _configurationService;
     private readonly DataFormat<PlaylistItem> _nodeFormat = DataFormat.CreateInProcessFormat<PlaylistItem>("PlaylistItemFormat");
     private InsertionLineAdorner? _insertionLine;
     private AdornerLayer? _adornerLayer;
@@ -34,9 +34,17 @@ internal partial class MainWindow : Window
     private int _winRestoreTop = 100;
     private int _winRestoreLeft = 100;
 
-    public MainWindow(Services.IConfigurationService configurationService)
+    // Parameterless constructor for XAML previewer and designer.
+    public MainWindow()
+    {
+        InitializeComponent();
+    }
+    public MainWindow(Services.IConfigurationService configurationService) : this()
     {
         _configurationService = configurationService;
+
+        //InitializeComponent();
+
         var mw = _configurationService.CurrentConfiguration.MainWindow;
 
         // TODO: multi-monitor support. If the saved position is outside of the current monitor, move it to the monitor.
@@ -73,14 +81,14 @@ internal partial class MainWindow : Window
             this.WindowState = WindowState.Normal;
         }
 
-        InitializeComponent();
 
         this.PlaylistListBox.AddHandler(InputElement.PointerPressedEvent, OnItemPointerPressed, RoutingStrategies.Tunnel);
 
-        this.Closing -= Window_Closing;
-        this.SizeChanged -= Window_SizeChanged;
-        this.Activated -= Window_Activated;
-        this.Resized -= Window_Resized;
+        this.Closing += Window_Closing;
+        this.SizeChanged += Window_SizeChanged;
+        this.Activated += Window_Activated;
+        this.Deactivated += Window_Deactivated;
+        this.Resized += Window_Resized;
     }
 
     protected override void OnOpened(EventArgs e)
@@ -106,6 +114,7 @@ internal partial class MainWindow : Window
         //this.Closing -= Window_Closing;
         this.SizeChanged -= Window_SizeChanged;
         this.Activated -= Window_Activated;
+        this.Deactivated -= Window_Deactivated;
         this.Resized -= Window_Resized;
 
         base.OnClosed(e);
@@ -131,7 +140,7 @@ internal partial class MainWindow : Window
 
     private async void OnItemPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (DataContext is not MainWindowViewModel vm)
+        if (DataContext is not MainWindowViewModel)
             return;
 
         if (e.Source is not Control control || control.DataContext is not PlaylistItem item)
@@ -203,7 +212,7 @@ internal partial class MainWindow : Window
 
         var draggedNode = e.DataTransfer.TryGetValue(_nodeFormat);
 
-        if (draggedNode is PlaylistItem item)
+        if (draggedNode is PlaylistItem)
         {
             var pos = e.GetPosition(PlaylistListBox);
             AutoScroll(PlaylistListBox, pos);
@@ -493,7 +502,12 @@ internal partial class MainWindow : Window
 
         _mainViewModel.UpdateSettings();
 
-        var config = _configurationService.CurrentConfiguration;
+        var config = _configurationService?.CurrentConfiguration;
+
+        if (config == null)
+        {
+            return;
+        }
 
         // Window Position must be saved before the window is closed, otherwise the position will be lost.
         #region == Save Configuration ==
@@ -508,6 +522,11 @@ internal partial class MainWindow : Window
         config.MainWindow.RestoreLeft = _winRestoreLeft;
         config.MainWindow.RestoreTop = _winRestoreTop;
 
+        if (_configurationService is null)
+        {
+            Debug.WriteLine("ConfigurationService is null");
+            return;
+        }
         await _configurationService.SaveConfigurationAsync();
 
         #endregion
@@ -527,6 +546,8 @@ internal partial class MainWindow : Window
 
     private void Window_Activated(object? sender, System.EventArgs e)
     {
+        this.AppTitleBarMenu.Opacity = 1;
+
         if (this.WindowState == WindowState.Normal)
         {
             _winRestoreHeight = (int)this.Height;
@@ -534,6 +555,11 @@ internal partial class MainWindow : Window
             _winRestoreTop = this.Position.Y;
             _winRestoreLeft = this.Position.X;
         }
+    }
+
+    private void Window_Deactivated(object? sender, EventArgs e)
+    {
+        this.AppTitleBarMenu.Opacity = 0.5;
     }
 
     private void Window_SizeChanged(object? sender, SizeChangedEventArgs e)
