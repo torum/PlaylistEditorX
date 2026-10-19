@@ -11,26 +11,18 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using System.Windows.Input;
 using System.Xml.Linq;
-
 
 namespace PlaylistEditorX.ViewModels;
 
 public partial class MainWindowViewModel : ObservableObject
 {
-    // These will be filled when you paste XMLConfig logic
-    private string ConfigFilePath => "app.config";
-
-    private XDocument? _xspfDoc;
-
-    //private object? xDocMain;
     private readonly DispatcherTimer _hideStatusTimer;
     private readonly Services.IStorageService _storageService;
     private readonly Services.IDialogService _dialogService;
-
+    private static string ConfigFilePath => "app.config";
+    private XDocument? _xspfDoc;
     public static readonly HashSet<string> PlaylistExtensions = new(StringComparer.OrdinalIgnoreCase) { ".txt", ".xspf", ".m3u", ".m3u8" };
-
 
     internal MainWindowViewModel(Services.IStorageService storageService, Services.IDialogService dialogService)
     {
@@ -45,6 +37,7 @@ public partial class MainWindowViewModel : ObservableObject
         {
             Interval = TimeSpan.FromSeconds(5)
         };
+
         _hideStatusTimer.Tick += (_, _) =>
         {
             IsStatusBarVisible = false;
@@ -60,6 +53,92 @@ public partial class MainWindowViewModel : ObservableObject
         // Handle command-line file open
         TryOpenStartupFile();
     }
+
+    #region == Properties ==
+
+    // These boolean properties control command availability
+    [ObservableProperty]
+    public partial bool CanSaveITunesTxt { get; set; }
+
+    [ObservableProperty]
+    public partial bool CanSaveM3u { get; set; }
+
+    [ObservableProperty]
+    public partial bool CanSaveM3uAnsi { get; set; }
+
+    [ObservableProperty]
+    public partial bool CanSaveM3uBom { get; set; }
+
+    [ObservableProperty]
+    public partial bool CanSaveM3uUtf8 { get; set; }
+
+    [ObservableProperty]
+    public partial bool CanSaveXspf { get; set; }
+
+    [ObservableProperty]
+    public partial bool CanConvertToM3u { get; set; }
+
+    [ObservableProperty]
+    public partial bool CanConvertToXspf { get; set; }
+
+    [ObservableProperty]
+    public partial bool CanCopySelectedPath { get; set; }
+
+    [ObservableProperty]
+    public partial bool CanOpenContainingFolder { get; set; }
+
+    [ObservableProperty]
+    public partial bool CanRemoveSelected { get; set; }
+
+    [ObservableProperty]
+    public partial bool CanAddFiles { get; set; }
+
+    public ObservableCollection<PlaylistItem> Items { get; } = [];
+
+    public ObservableCollection<string> RawLines { get; } = [];
+
+    [ObservableProperty]
+    public partial PlaylistItem? SelectedItem { get; set; }
+
+    [ObservableProperty]
+    public partial PlaylistType CurrentFormat { get; set; } = PlaylistType.New;
+
+    [ObservableProperty]
+    public partial bool IsBusy { get; set; }
+
+    [ObservableProperty]
+    public partial bool IsRearrangedOrder { get; set; }
+
+    [ObservableProperty]
+    public partial bool IsLocationEdited { get; set; }
+
+    [ObservableProperty]
+    public partial bool IsDirty { get; set; }
+
+    [ObservableProperty]
+    public partial bool IsCloseRequested { get; set; }
+
+    [ObservableProperty]
+    public partial string AppVersion { get; set; } = "1.0.0";
+
+    [ObservableProperty]
+    public partial string StatusTextLeft { get; set; } = "New";
+
+    [ObservableProperty]
+    public partial string StatusTextRight { get; set; } = "";
+
+    [ObservableProperty]
+    public partial bool IsStatusBarVisible { get; set; }
+
+    [ObservableProperty]
+    public partial string FindText { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string ReplaceText { get; set; } = string.Empty;
+
+    #endregion
+
+    #region == Public Methods ==
 
     #region == Window Lifecycle Methods ==
 
@@ -87,52 +166,6 @@ public partial class MainWindowViewModel : ObservableObject
         // Free resources
         Items.Clear();
         //xDocMain = null;
-    }
-
-    #endregion
-
-    #region == Config Handling ==
-
-    // Placeholder until you paste the Pascal versions
-    private void RestoreFormState() { }
-    private void StoreFormState() { }
-
-    private bool ConfigExists()
-    {
-        return System.IO.File.Exists(ConfigFilePath);
-    }
-
-    private void LoadConfig()
-    {
-        // You will implement this once you paste XMLConfig1 usage
-        // For now, placeholder
-    }
-
-    #endregion
-
-    #region == Startup File Handling ==
-
-    private void TryOpenStartupFile()
-    {
-        var args = Environment.GetCommandLineArgs();
-        if (args.Length <= 1)
-            return;
-
-        var file = args[1];
-        var ext = System.IO.Path.GetExtension(file).ToLowerInvariant();
-
-        if (ext == ".m3u" || ext == ".m3u8")
-        {
-            OpenM3u(file);
-        }
-        else if (ext == ".xspf")
-        {
-            OpenXspf(file);
-        }
-        else if (ext == ".txt")
-        {
-            OpenITunesTxt(file);
-        }
     }
 
     #endregion
@@ -293,114 +326,6 @@ public partial class MainWindowViewModel : ObservableObject
 
     #endregion
 
-    #region == Command Availability Flags ==
-
-    private void DisableAllCommands()
-    {
-        CanSaveITunesTxt = false;
-        CanSaveM3u = false;
-        CanSaveM3uAnsi = false;
-        CanSaveM3uBom = false;
-        CanSaveM3uUtf8 = false;
-        CanSaveXspf = false;
-
-        CanConvertToM3u = false;
-        CanConvertToXspf = false;
-
-        CanCopySelectedPath = false;
-        CanOpenContainingFolder = false;
-        CanRemoveSelected = false;
-        CanAddFiles = false;
-    }
-
-    #endregion
-
-    #region == Observable Properties ==
-
-    // These boolean properties control command availability
-    [ObservableProperty]
-    public partial bool CanSaveITunesTxt { get; set; }
-
-    [ObservableProperty]
-    public partial bool CanSaveM3u { get; set; }
-
-    [ObservableProperty]
-    public partial bool CanSaveM3uAnsi { get; set; }
-
-    [ObservableProperty]
-    public partial bool CanSaveM3uBom { get; set; }
-
-    [ObservableProperty]
-    public partial bool CanSaveM3uUtf8 { get; set; }
-
-    [ObservableProperty]
-    public partial bool CanSaveXspf { get; set; }
-
-    [ObservableProperty]
-    public partial bool CanConvertToM3u { get; set; }
-
-    [ObservableProperty]
-    public partial bool CanConvertToXspf { get; set; }
-
-    [ObservableProperty]
-    public partial bool CanCopySelectedPath { get; set; }
-
-    [ObservableProperty]
-    public partial bool CanOpenContainingFolder { get; set; }
-
-    [ObservableProperty]
-    public partial bool CanRemoveSelected { get; set; }
-
-    [ObservableProperty]
-    public partial bool CanAddFiles { get; set; }
-
-    public ObservableCollection<PlaylistItem> Items { get; } = [];
-
-    public ObservableCollection<string> RawLines { get; } = [];
-
-    [ObservableProperty]
-    public partial PlaylistItem? SelectedItem { get; set; }
-
-    [ObservableProperty]
-    public partial PlaylistType CurrentFormat { get; set; } = PlaylistType.New;
-
-    [ObservableProperty]
-    public partial bool IsBusy { get; set; }
-
-    [ObservableProperty]
-    public partial bool IsRearrangedOrder { get; set; }
-
-    [ObservableProperty]
-    public partial bool IsLocationEdited { get; set; }
-
-    [ObservableProperty]
-    public partial bool IsDirty { get; set; }
-
-    [ObservableProperty]
-    public partial bool IsCloseRequested { get; set; }
-
-    [ObservableProperty]
-    public partial string AppVersion { get; set; } = "1.0.0";
-
-    [ObservableProperty]
-    public partial string StatusTextLeft { get; set; } = "New";
-
-    [ObservableProperty]
-    public partial string StatusTextRight { get; set; } = "";
-
-    [ObservableProperty]
-    public partial bool IsStatusBarVisible { get; set; }
-
-    [ObservableProperty]
-    public partial string FindText { get; set; } = string.Empty;
-
-    [ObservableProperty]
-    public partial string ReplaceText { get; set; } = string.Empty;
-
-    #endregion
-
-    #region == Public Methods ==
-
     public void ReorderItems(PlaylistItem dragged, PlaylistItem? target, bool isDropAbove)
     {
         //Debug.WriteLine($"ReorderItems: dragged={dragged.Text}, target={(target != null ? target.Text : "null")}");
@@ -445,10 +370,119 @@ public partial class MainWindowViewModel : ObservableObject
             RawLines.Add(line);
     }
 
+    #endregion
+
+    #region == Private Methods ==
+
+    #region == Startup File Handling ==
+
+    private void TryOpenStartupFile()
+    {
+        var args = Environment.GetCommandLineArgs();
+        if (args.Length <= 1)
+            return;
+
+        var file = args[1];
+        var ext = System.IO.Path.GetExtension(file).ToLowerInvariant();
+
+        if (ext == ".m3u" || ext == ".m3u8")
+        {
+            OpenM3u(file);
+        }
+        else if (ext == ".xspf")
+        {
+            OpenXspf(file);
+        }
+        else if (ext == ".txt")
+        {
+            OpenITunesTxt(file);
+        }
+    }
+
+    #endregion
+
+    #region == Config Handling ==
+
+    // Placeholder until you paste the Pascal versions
+    private void RestoreFormState() { }
+    private void StoreFormState() { }
+
+    private bool ConfigExists()
+    {
+        return System.IO.File.Exists(ConfigFilePath);
+    }
+
+    private void LoadConfig()
+    {
+        // You will implement this once you paste XMLConfig1 usage
+        // For now, placeholder
+    }
+
+    #endregion
+
+    #region == Init Utilities ==
+
+    private void DisableAllCommands()
+    {
+        CanSaveITunesTxt = false;
+        CanSaveM3u = false;
+        CanSaveM3uAnsi = false;
+        CanSaveM3uBom = false;
+        CanSaveM3uUtf8 = false;
+        CanSaveXspf = false;
+
+        CanConvertToM3u = false;
+        CanConvertToXspf = false;
+
+        CanCopySelectedPath = false;
+        CanOpenContainingFolder = false;
+        CanRemoveSelected = false;
+        CanAddFiles = false;
+    }
+
+    public void ClearPlaylist()
+    {
+        RawLines.Clear();
+        Items.Clear();
+        IsDirty = false;
+        IsRearrangedOrder = false;
+        IsLocationEdited = false;
+        CurrentFormat = PlaylistType.New;
+        StatusTextLeft = "New";
+        StatusTextRight = "";
+        // Disable commands
+        DisableAllCommands();
+    }
+
+    #endregion
+
+    #region == Edit Utilities ==
+
+    private void ApplyReindexing()
+    {
+        IsRearrangedOrder = true;
+        IsDirty = true;
+
+        for (int i = 0; i < Items.Count; i++)
+        {
+            Items[i].Index = i + 1;
+            //Items[i].OriginalIndex = i + 1;
+        }
+
+        var newRaw = Items.Select(x => RawLines[x.Index - 1]).ToList();
+
+        RawLines.Clear();
+        foreach (var line in newRaw)
+            RawLines.Add(line);
+    }
+
+    #endregion
 
     #endregion
 
     #region == Commands ==
+
+    #region == Add Files ==
 
     [RelayCommand]
     public void AddFilesToPlaylist(string[] files)
@@ -585,6 +619,10 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
+    #endregion
+
+    #region == Remove ==
+
     [RelayCommand]
     public void RemoveSelected()
     {
@@ -611,27 +649,7 @@ public partial class MainWindowViewModel : ObservableObject
     {
     }
 
-    [RelayCommand]
-    private async Task CopySelectedPath()
-    {
-        if (SelectedItem == null)
-            return;
-        var path = SelectedItem.FilePath;
-        try
-        {
-            var local = ConvertUriToLocalPath(path);
-            await _storageService.CopyTextToClipboardAsync(local);
-        }
-        catch
-        {
-            // ignore errors
-        }
-    }
-
-    [RelayCommand]
-    private void EditPathUri()
-    {
-    }
+    #endregion
 
     [RelayCommand]
     public void OpenContainingFolder()
@@ -655,6 +673,7 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
+    #region == Find and Replace ==
 
     [RelayCommand]
     public void ReplaceAll()
@@ -847,6 +866,15 @@ public partial class MainWindowViewModel : ObservableObject
             RawLines.Add(l);
     }
 
+    #endregion
+
+    #region == Edit Path ==
+
+    [RelayCommand]
+    private void EditPathUri()
+    {
+    }
+
     [RelayCommand]
     public void EditSelectedPath(string newValue)
     {
@@ -921,6 +949,27 @@ public partial class MainWindowViewModel : ObservableObject
         RawLines[index - 1] = newValue;
     }
 
+
+    [RelayCommand]
+    private async Task CopySelectedPath()
+    {
+        if (SelectedItem == null)
+            return;
+        var path = SelectedItem.FilePath;
+        try
+        {
+            var local = ConvertUriToLocalPath(path);
+            await _storageService.CopyTextToClipboardAsync(local);
+        }
+        catch
+        {
+            // ignore errors
+        }
+    }
+
+    #endregion
+
+    #region = New File ==
 
     [RelayCommand]
     private async Task NewFileAsync()
@@ -1008,19 +1057,9 @@ public partial class MainWindowViewModel : ObservableObject
         CanSaveXspf = false;
     }
 
-    public void ClearPlaylist()
-    {
-        RawLines.Clear();
-        Items.Clear();
-        IsDirty = false;
-        IsRearrangedOrder = false;
-        IsLocationEdited = false;
-        CurrentFormat = PlaylistType.New;
-        StatusTextLeft = "New";
-        StatusTextRight = "";
-        // Disable commands
-        DisableAllCommands();
-    }
+    #endregion
+
+    #region = Open file or Drag and Drop ==
 
     public async Task FilesDroped(IEnumerable<string?> files)
     {
@@ -1357,6 +1396,10 @@ public partial class MainWindowViewModel : ObservableObject
         CanConvertToXspf = false;
     }
 
+    #endregion
+
+    #region = Convert Format ==
+
     [RelayCommand]
     private void ConvertToXspf()
     {
@@ -1593,6 +1636,10 @@ public partial class MainWindowViewModel : ObservableObject
         IsBusy = false;
     }
 
+    #endregion
+
+    #region = Save File ==
+
     [RelayCommand]
     public async Task SaveITunesTxtAsync()
     {
@@ -1757,7 +1804,9 @@ public partial class MainWindowViewModel : ObservableObject
         */
     }
 
-    // In MainWindowViewModel
+    #endregion
+
+    #region = Menu Items ==
 
     [RelayCommand]
     public void MoveItemUp()
@@ -1801,28 +1850,10 @@ public partial class MainWindowViewModel : ObservableObject
         ApplyReindexing();
     }
 
-    private void ApplyReindexing()
-    {
-        IsRearrangedOrder = true;
-        IsDirty = true;
+    #endregion
 
-        for (int i = 0; i < Items.Count; i++)
-        {
-            Items[i].Index = i + 1;
-            Items[i].OriginalIndex = i + 1;
-        }
-
-        var newRaw = Items.Select(x => RawLines[x.OriginalIndex - 1]).ToList();
-
-        RawLines.Clear();
-        foreach (var line in newRaw)
-            RawLines.Add(line);
-    }
 
 
     #endregion
 
-
 }
-
-
