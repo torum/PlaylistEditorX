@@ -17,27 +17,81 @@ using System.Xml.Linq;
 
 namespace PlaylistEditorX.Views;
 
-public partial class MainWindow : Window
+internal partial class MainWindow : Window
 {
+    private readonly Services.IConfigurationService _configurationService;
     private readonly DataFormat<PlaylistItem> _nodeFormat = DataFormat.CreateInProcessFormat<PlaylistItem>("PlaylistItemFormat");
+    private InsertionLineAdorner? _insertionLine;
+    private AdornerLayer? _adornerLayer;
     private Point _pointerPressedPoint;
     private bool _isPressed;
     private bool _isPressedAndMoved;
-
     private bool _isDropAbove;
+    private bool _isClosing;
 
-    private InsertionLineAdorner? _insertionLine;
-    private AdornerLayer? _adornerLayer;
+    private int _winRestoreWidth = 1024;
+    private int _winRestoreHeight = 768;
+    private int _winRestoreTop = 100;
+    private int _winRestoreLeft = 100;
 
-    #region = Public ==
-
-    #endregion
-
-    public MainWindow()
+    public MainWindow(Services.IConfigurationService configurationService)
     {
+        _configurationService = configurationService;
+        var mw = _configurationService.CurrentConfiguration.MainWindow;
+
+        // TODO: multi-monitor support. If the saved position is outside of the current monitor, move it to the monitor.
+        if ((mw.Left >= 0) && (mw.Top >= 0))
+        {
+            this.Position = new PixelPoint(mw.Left, mw.Top);
+        }
+        else
+        {
+            this.Position = new PixelPoint(100, 100);
+        }
+
+        if (mw.Height >= 120)
+        {
+            this.Height = mw.Height;
+        }
+
+        if (mw.Width >= 480)
+        {
+            this.Width = mw.Width;
+        }
+
+        _winRestoreWidth = (int)mw.RestoreWidth;
+        _winRestoreHeight = (int)mw.RestoreHeight;
+        _winRestoreLeft = mw.RestoreLeft;
+        _winRestoreTop = mw.RestoreTop;
+
+        if (mw.WindowState == WindowState.Maximized)
+        {
+            this.WindowState = WindowState.Maximized;
+        }
+        else
+        {
+            this.WindowState = WindowState.Normal;
+        }
+
         InitializeComponent();
 
         this.PlaylistListBox.AddHandler(InputElement.PointerPressedEvent, OnItemPointerPressed, RoutingStrategies.Tunnel);
+
+        this.Closing -= Window_Closing;
+        this.SizeChanged -= Window_SizeChanged;
+        this.Activated -= Window_Activated;
+        this.Resized -= Window_Resized;
+    }
+
+    protected override void OnOpened(EventArgs e)
+    {
+        base.OnOpened(e);
+
+        if (DataContext is not MainWindowViewModel _mainViewModel)
+        {
+            return;
+        }
+        _mainViewModel.WorkingStateChanged += OnWorkingStateChanged;
     }
 
     protected override void OnLoaded(RoutedEventArgs e)
@@ -47,6 +101,34 @@ public partial class MainWindow : Window
         _adornerLayer = AdornerLayer.GetAdornerLayer(PlaylistListBox);
     }
 
+    protected override void OnClosed(EventArgs e)
+    {
+        //this.Closing -= Window_Closing;
+        this.SizeChanged -= Window_SizeChanged;
+        this.Activated -= Window_Activated;
+        this.Resized -= Window_Resized;
+
+        base.OnClosed(e);
+
+        if (DataContext is not MainWindowViewModel _mainViewModel)
+        {
+            return;
+        }
+        _mainViewModel.WorkingStateChanged -= OnWorkingStateChanged;
+    }
+
+    private void OnWorkingStateChanged(object? sender, bool e)
+    {
+        if (e)
+        {
+            this.Cursor = new Cursor(StandardCursorType.AppStarting);
+        }
+        else
+        {
+            this.Cursor = new Cursor(StandardCursorType.Arrow);
+        }
+    }
+
     private async void OnItemPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (DataContext is not MainWindowViewModel vm)
@@ -54,7 +136,7 @@ public partial class MainWindow : Window
 
         if (e.Source is not Control control || control.DataContext is not PlaylistItem item)
         {
-            Debug.WriteLine($"Not DataContext is PlaylistItem: {e.Source}");
+            //Debug.WriteLine($"Not DataContext is PlaylistItem: {e.Source}");
             return;
         }
 
@@ -78,7 +160,7 @@ public partial class MainWindow : Window
 
         if (!_isPressedAndMoved)
         {
-            Debug.WriteLine("Pointer did not move");
+            //Debug.WriteLine("Pointer did not move");
             return;
         }
 
@@ -362,7 +444,7 @@ public partial class MainWindow : Window
         if (deltaX > 4 || deltaY > 4)
         {
             // The pointer HAS moved beyond a tiny jitter threshold
-            Debug.WriteLine("Pointer is moved");
+            //Debug.WriteLine("Pointer is moved");
             _isPressedAndMoved = true;
             _isPressed = false;
         }
@@ -378,5 +460,90 @@ public partial class MainWindow : Window
     {
         _isPressedAndMoved = false;
         _isPressed = false;
+    }
+
+    private async void Window_Closing(object? sender, Avalonia.Controls.WindowClosingEventArgs e)
+    {
+        Debug.WriteLine("OnClosing");
+        this.Closing -= Window_Closing;
+
+        if (_isClosing) return;
+        _isClosing = true;
+
+        e.Cancel = true; // Cancel the default close behavior to allow for async operations
+
+        try
+        {
+            await SaveSettings();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Error in Window_Closing: {ex.Message}");
+        }
+        
+        this.Close();
+    }
+
+    private async Task SaveSettings()
+    {
+        if (DataContext is not MainWindowViewModel _mainViewModel)
+        {
+            return;
+        }
+
+        _mainViewModel.UpdateSettings();
+
+        var config = _configurationService.CurrentConfiguration;
+
+        // Window Position must be saved before the window is closed, otherwise the position will be lost.
+        #region == Save Configuration ==
+
+        config.MainWindow.Width = this.Width;
+        config.MainWindow.Height = this.Height;
+        config.MainWindow.Left = this.Position.X;
+        config.MainWindow.Top = this.Position.Y;
+        config.MainWindow.WindowState = this.WindowState;
+        config.MainWindow.RestoreWidth = _winRestoreWidth;
+        config.MainWindow.RestoreHeight = _winRestoreHeight;
+        config.MainWindow.RestoreLeft = _winRestoreLeft;
+        config.MainWindow.RestoreTop = _winRestoreTop;
+
+        await _configurationService.SaveConfigurationAsync();
+
+        #endregion
+
+    }
+
+    private void Window_Resized(object? sender, Avalonia.Controls.WindowResizedEventArgs e)
+    {
+        if (this.WindowState == WindowState.Normal)
+        {
+            _winRestoreHeight = (int)this.Height;
+            _winRestoreWidth = (int)this.Width;
+            _winRestoreTop = this.Position.Y;
+            _winRestoreLeft = this.Position.X;
+        }
+    }
+
+    private void Window_Activated(object? sender, System.EventArgs e)
+    {
+        if (this.WindowState == WindowState.Normal)
+        {
+            _winRestoreHeight = (int)this.Height;
+            _winRestoreWidth = (int)this.Width;
+            _winRestoreTop = this.Position.Y;
+            _winRestoreLeft = this.Position.X;
+        }
+    }
+
+    private void Window_SizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        if (this.WindowState == WindowState.Normal)
+        {
+            _winRestoreHeight = (int)this.Height;
+            _winRestoreWidth = (int)this.Width;
+            _winRestoreTop = this.Position.Y;
+            _winRestoreLeft = this.Position.X;
+        }
     }
 }

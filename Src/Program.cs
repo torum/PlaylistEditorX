@@ -17,7 +17,6 @@ namespace PlaylistEditorX
             => AppBuilder.Configure<App>()
                 .UsePlatformDetect()
                 .With(new Win32PlatformOptions { OverlayPopups = true })
-                .WithInterFont()
-                .LogToTrace();
+                .WithInterFont();
     }
 }

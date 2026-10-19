@@ -1,4 +1,5 @@
 ﻿
+using Avalonia.Controls;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
@@ -8,6 +9,8 @@ namespace PlaylistEditorX.Services;
 
 public interface IStorageService
 {
+    void Initialize(Window mainWindow);
+
     // Returns a stream and the file name, or null if cancelled
     Task<(Stream Stream, string Name)?> OpenFileAsync(string title, string[] extensions);
 

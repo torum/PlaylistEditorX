@@ -1,6 +1,8 @@
 ﻿using Avalonia.Controls;
 using Avalonia.Input.Platform;
 using Avalonia.Platform.Storage;
+using PlaylistEditorX.Views;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -10,16 +12,26 @@ namespace PlaylistEditorX.Services;
 
 public class StorageService : IStorageService
 {
-    private readonly Window _mainWindow;
+    private Window? _mainWindow;
+    private bool _isInitialized;
 
-    // Pass your main window reference during app startup
-    public StorageService(Window mainWindow)
+    public StorageService()
+    {
+    }
+
+    public void Initialize(Window mainWindow)
     {
         _mainWindow = mainWindow;
+        _isInitialized = true;
     }
 
     public async Task<IReadOnlyList<string>> SelectFilesAsync(string title, string[] extensions, bool allowMultiple)
     {
+        if (!_isInitialized)
+        {
+            throw new InvalidOperationException("StorageService is not initialized.");
+        }
+
         var topLevel = TopLevel.GetTopLevel(_mainWindow);
         if (topLevel == null) return System.Array.Empty<string>();
 
@@ -45,6 +57,11 @@ public class StorageService : IStorageService
 
     public async Task<(Stream Stream, string Name)?> OpenFileAsync(string title, string[] extensions)
     {
+        if (!_isInitialized)
+        {
+            throw new InvalidOperationException("StorageService is not initialized.");
+        }
+
         var topLevel = TopLevel.GetTopLevel(_mainWindow);
         if (topLevel == null) return null;
 
@@ -72,6 +89,11 @@ public class StorageService : IStorageService
 
     public async Task CopyTextToClipboardAsync(string text)
     {
+        if (!_isInitialized)
+        {
+            throw new InvalidOperationException("StorageService is not initialized.");
+        }
+
         var topLevel = TopLevel.GetTopLevel(_mainWindow);
         if (topLevel?.Clipboard is not null)
         {

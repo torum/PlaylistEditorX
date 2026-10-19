@@ -20,14 +20,20 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly DispatcherTimer _hideStatusTimer;
     private readonly Services.IStorageService _storageService;
     private readonly Services.IDialogService _dialogService;
+    private readonly Services.IConfigurationService _configurationService;
+    private string _lastOpenedDirectory = string.Empty;
     private static string ConfigFilePath => "app.config";
     private XDocument? _xspfDoc;
     public static readonly HashSet<string> PlaylistExtensions = new(StringComparer.OrdinalIgnoreCase) { ".txt", ".xspf", ".m3u", ".m3u8" };
+    public event EventHandler<bool>? WorkingStateChanged;
 
-    internal MainWindowViewModel(Services.IStorageService storageService, Services.IDialogService dialogService)
+    internal MainWindowViewModel(Services.IStorageService storageService, Services.IDialogService dialogService, Services.IConfigurationService configurationService)
     {
         _storageService = storageService;
         _dialogService = dialogService;
+        _configurationService = configurationService;
+
+        _lastOpenedDirectory = _configurationService.CurrentConfiguration.LastOpenedDirectory;
 
         // Status bar initially hidden
         IsStatusBarVisible = false;
@@ -55,6 +61,63 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     #region == Properties ==
+
+    public ObservableCollection<PlaylistItem> Items { get; } = [];
+
+    public ObservableCollection<string> RawLines { get; } = [];
+
+    [ObservableProperty]
+    public partial PlaylistItem? SelectedItem { get; set; }
+
+    [ObservableProperty]
+    public partial PlaylistType CurrentFormat { get; set; } = PlaylistType.New;
+
+    public bool IsBusy
+    {
+        get;
+        set
+        {
+            if (field == value)
+                return;
+
+            field = value;
+
+            Dispatcher.UIThread.Post(() =>
+            {
+                WorkingStateChanged?.Invoke(this, value);
+            }, DispatcherPriority.Input);
+        }
+    }
+
+    [ObservableProperty]
+    public partial bool IsRearrangedOrder { get; set; }
+
+    [ObservableProperty]
+    public partial bool IsLocationEdited { get; set; }
+
+    [ObservableProperty]
+    public partial bool IsDirty { get; set; }
+
+    [ObservableProperty]
+    public partial bool IsCloseRequested { get; set; }
+
+    [ObservableProperty]
+    public partial string AppVersion { get; set; } = "1.0.0";
+
+    [ObservableProperty]
+    public partial string StatusTextLeft { get; set; } = "New";
+
+    [ObservableProperty]
+    public partial string StatusTextRight { get; set; } = "";
+
+    [ObservableProperty]
+    public partial bool IsStatusBarVisible { get; set; }
+
+    [ObservableProperty]
+    public partial string FindText { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string ReplaceText { get; set; } = string.Empty;
 
     // These boolean properties control command availability
     [ObservableProperty]
@@ -93,54 +156,18 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty]
     public partial bool CanAddFiles { get; set; }
 
-    public ObservableCollection<PlaylistItem> Items { get; } = [];
-
-    public ObservableCollection<string> RawLines { get; } = [];
-
-    [ObservableProperty]
-    public partial PlaylistItem? SelectedItem { get; set; }
-
-    [ObservableProperty]
-    public partial PlaylistType CurrentFormat { get; set; } = PlaylistType.New;
-
-    [ObservableProperty]
-    public partial bool IsBusy { get; set; }
-
-    [ObservableProperty]
-    public partial bool IsRearrangedOrder { get; set; }
-
-    [ObservableProperty]
-    public partial bool IsLocationEdited { get; set; }
-
-    [ObservableProperty]
-    public partial bool IsDirty { get; set; }
-
-    [ObservableProperty]
-    public partial bool IsCloseRequested { get; set; }
-
-    [ObservableProperty]
-    public partial string AppVersion { get; set; } = "1.0.0";
-
-    [ObservableProperty]
-    public partial string StatusTextLeft { get; set; } = "New";
-
-    [ObservableProperty]
-    public partial string StatusTextRight { get; set; } = "";
-
-    [ObservableProperty]
-    public partial bool IsStatusBarVisible { get; set; }
-
-    [ObservableProperty]
-    public partial string FindText { get; set; } = string.Empty;
-
-    [ObservableProperty]
-    public partial string ReplaceText { get; set; } = string.Empty;
-
     #endregion
 
     #region == Public Methods ==
 
     #region == Window Lifecycle Methods ==
+
+    public void UpdateSettings()
+    {
+        var config = _configurationService.CurrentConfiguration;
+
+        config.LastOpenedDirectory = _lastOpenedDirectory;
+    }
 
     public void OnWindowOpened()
     {
@@ -651,28 +678,6 @@ public partial class MainWindowViewModel : ObservableObject
 
     #endregion
 
-    [RelayCommand]
-    public void OpenContainingFolder()
-    {
-        if (SelectedItem == null)
-            return;
-
-        var path = SelectedItem.FilePath;
-
-        try
-        {
-            var local = ConvertUriToLocalPath(path);
-            var folder = Path.GetDirectoryName(local);
-
-            if (folder != null && Directory.Exists(folder))
-                Process.Start(new ProcessStartInfo(folder) { UseShellExecute = true });
-        }
-        catch
-        {
-            // ignore errors
-        }
-    }
-
     #region == Find and Replace ==
 
     [RelayCommand]
@@ -1059,7 +1064,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     #endregion
 
-    #region = Open file or Drag and Drop ==
+    #region == Open file or Drag and Drop ==
 
     public async Task FilesDroped(IEnumerable<string?> files)
     {
@@ -1171,9 +1176,16 @@ public partial class MainWindowViewModel : ObservableObject
 
             var cols = line.Split('\t');
 
+            if (cols.Length <= 1)
+            {
+                // end of line?
+                continue;
+            }
+
             if (cols.Length < 31)
             {
-                StatusTextRight = "Error: Wrong column count. Invalid format!";
+                Debug.WriteLine($"Error: Wrong column count. Invalid format! {cols.Length}:{line}");
+                StatusTextRight = $"Error: Wrong column count. Invalid format! {cols.Length}:{line}";
                 CurrentFormat = PlaylistType.Error;
                 IsBusy = false;
                 return;
@@ -1398,7 +1410,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     #endregion
 
-    #region = Convert Format ==
+    #region == Convert Format ==
 
     [RelayCommand]
     private void ConvertToXspf()
@@ -1638,7 +1650,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     #endregion
 
-    #region = Save File ==
+    #region == Save File ==
 
     [RelayCommand]
     public async Task SaveITunesTxtAsync()
@@ -1806,7 +1818,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     #endregion
 
-    #region = Menu Items ==
+    #region == Menu Items ==
 
     [RelayCommand]
     public void MoveItemUp()
@@ -1850,9 +1862,31 @@ public partial class MainWindowViewModel : ObservableObject
         ApplyReindexing();
     }
 
+
+    [RelayCommand]
+    public void OpenContainingFolder()
+    {
+        if (SelectedItem == null)
+            return;
+
+        var path = SelectedItem.FilePath;
+
+        try
+        {
+            var local = ConvertUriToLocalPath(path);
+            var folder = Path.GetDirectoryName(local);
+
+            if (folder != null && Directory.Exists(folder))
+                Process.Start(new ProcessStartInfo(folder) { UseShellExecute = true });
+        }
+        catch
+        {
+            // ignore errors
+        }
+    }
+
+
     #endregion
-
-
 
     #endregion
 

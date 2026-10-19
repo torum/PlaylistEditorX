@@ -65,9 +65,11 @@
             <Grid.RowDefinitions>
                 <RowDefinition Height="*" />
                 <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
             <ListBox x:Name="PlaylistListBox"
+                      Margin="24,24,0,0"
                     ItemsSource="{Binding Items}"
                     SelectedItem="{Binding SelectedItem}"
                     DragDrop.AllowDrop="True"
@@ -84,7 +86,7 @@
 				</ListBox.ItemsPanel>
                 <ListBox.Styles>
                     <Style Selector="ListBoxItem" x:DataType="models:PlaylistItem">
-						<Setter Property="Padding" Value="0,0,0,0"/>
+						<Setter Property="Padding" Value="6"/>
 						<Setter Property="VerticalAlignment" Value="Center"/>
                         <Setter Property="ContextFlyout">
 							<Setter.Value>
@@ -112,22 +114,27 @@
                     </DataTemplate>
                 </ListBox.ItemTemplate>
             </ListBox>
-            <!-- Status bar + progress -->
-            <Border Grid.Row="1">
-                <StackPanel Orientation="Horizontal">
-                    <Border>
-                        <TextBlock Text="{Binding StatusTextLeft}" />
-                    </Border>
-                    <Border>
-                        <TextBlock Text="{Binding StatusTextRight}" />
-                    </Border>
-                    <Border>
-                        <ProgressBar Width="120"
-                                     IsIndeterminate="{Binding IsBusy}" />
-                    </Border>
-                </StackPanel>
 
-            </Border>
+            <!-- Status bar + progress -->
+            <Border Grid.Row="1" BorderBrush="{DynamicResource CardStrokeBorderBrush}" BorderThickness="0,1,0,0" Opacity="1"></Border>
+            <Grid Grid.Row="2" Margin="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0" Padding="3">
+                    <TextBlock Text="{Binding StatusTextLeft}" />
+                </Border>
+                <Border Grid.Column="1" Padding="3">
+                    <TextBlock Text="{Binding StatusTextRight}" />
+                </Border>
+                <Border Grid.Column="2" Padding="3">
+                    <ProgressBar Width="120" IsIndeterminate="{Binding IsBusy}" />
+                </Border>
+
+            </Grid>
         </Grid>
     </Grid>
 
