@@ -324,13 +324,55 @@ public partial class MainWindowViewModel : ObservableObject
 
     #endregion
 
-    public void ReorderItems(PlaylistItem dragged, PlaylistItem? target, bool isDropAbove)
+    public void ReorderItems(List<PlaylistItem> dragged, PlaylistItem? target, bool isDropAbove)
     {
         //Debug.WriteLine($"ReorderItems: dragged={dragged.Text}, target={(target != null ? target.Text : "null")}");
 
-        if (target == null || dragged == null || dragged == target)
+        if (target == null || dragged == null || dragged.Count == 0)
             return;
 
+        var moving = dragged
+        .Where(item => Items.Contains(item))
+        .Distinct()
+        .OrderBy(item => Items.IndexOf(item))
+        .ToList();
+
+        if (moving.Count == 0 || moving.Contains(target))
+            return;
+
+        int targetIndex = Items.IndexOf(target);
+        if (targetIndex < 0)
+            return;
+
+        var originalItems = Items.ToList();
+        var originalRawLines = RawLines.ToList();
+        var rawLineByItem = new Dictionary<PlaylistItem, string>();
+
+        for (int i = 0; i < originalItems.Count; i++)
+            rawLineByItem.Add(originalItems[i], originalRawLines[i]);
+
+        int insertionIndex = targetIndex + (isDropAbove ? 0 : 1);
+        insertionIndex -= moving.Count(item => Items.IndexOf(item) < insertionIndex);
+
+        foreach (var item in moving)
+            Items.Remove(item);
+
+        for (int i = 0; i < moving.Count; i++)
+            Items.Insert(insertionIndex + i, moving[i]);
+
+        if (originalItems.SequenceEqual(Items))
+            return;
+
+        for (int i = 0; i < Items.Count; i++)
+            Items[i].Index = i + 1;
+
+        RawLines.Clear();
+        foreach (var item in Items)
+            RawLines.Add(rawLineByItem[item]);
+
+        IsRearrangedOrder = true;
+        IsDirty = true;
+        /*
         IsRearrangedOrder = true;
         IsDirty = true;
 
@@ -357,7 +399,6 @@ public partial class MainWindowViewModel : ObservableObject
         for (int i = 0; i < Items.Count; i++)
         {
             Items[i].Index = i + 1;
-            //Items[i].OriginalIndex = i + 1;
         }
 
         // Rebuild RawLines to match new order
@@ -366,6 +407,7 @@ public partial class MainWindowViewModel : ObservableObject
         RawLines.Clear();
         foreach (var line in newRaw)
             RawLines.Add(line);
+        */
     }
 
     #endregion

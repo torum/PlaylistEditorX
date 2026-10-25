@@ -20,7 +20,7 @@ namespace PlaylistEditorX.Views;
 public partial class MainWindow : Window
 {
     private readonly Services.IConfigurationService? _configurationService;
-    private readonly DataFormat<PlaylistItem> _nodeFormat = DataFormat.CreateInProcessFormat<PlaylistItem>("PlaylistItemFormat");
+    private readonly DataFormat<List<PlaylistItem>> _nodeFormat = DataFormat.CreateInProcessFormat<List<PlaylistItem>>("PlaylistItemFormat");
     private InsertionLineAdorner? _insertionLine;
     private AdornerLayer? _adornerLayer;
     private Point _pointerPressedPoint;
@@ -156,6 +156,18 @@ public partial class MainWindow : Window
             return;
         }
 
+        var selectedItems = PlaylistListBox.SelectedItems;
+        if (selectedItems == null || selectedItems.Count == 0)
+            return;
+
+        var isSelected = selectedItems.Contains(item);
+        var payload = isSelected
+            ? selectedItems.OfType<PlaylistItem>().ToList()
+            : new List<PlaylistItem> { item };
+
+        // Keep the ListBox from replacing the multi-selection on pointer-down.
+        if (isSelected) e.Handled = true;
+
         _pointerPressedPoint = e.GetPosition(this);
         _isPressed = true;
         _isPressedAndMoved = false;
@@ -170,10 +182,11 @@ public partial class MainWindow : Window
         if (!_isPressedAndMoved)
         {
             //Debug.WriteLine("Pointer did not move");
+            e.Handled = false;
             return;
         }
 
-        var transferItem = DataTransferItem.Create(_nodeFormat, item);
+        var transferItem = DataTransferItem.Create(_nodeFormat, payload);
 
         // 2. Prepare the v12 DataTransfer container payload
         var dragData = new DataTransfer();
@@ -189,6 +202,10 @@ public partial class MainWindow : Window
         if (result == DragDropEffects.Move)
         {
             e.Handled = true;
+        }
+        else
+        {
+            e.Handled = false;
         }
 
         Debug.WriteLine(result == DragDropEffects.Move
@@ -212,7 +229,7 @@ public partial class MainWindow : Window
 
         var draggedNode = e.DataTransfer.TryGetValue(_nodeFormat);
 
-        if (draggedNode is PlaylistItem)
+        if (draggedNode is List<PlaylistItem> draggedNodes)
         {
             var pos = e.GetPosition(PlaylistListBox);
             AutoScroll(PlaylistListBox, pos);
@@ -315,6 +332,20 @@ public partial class MainWindow : Window
                     return;
                 }
 
+                // Success.
+
+                //Debug.WriteLine($"DraggedNode = {draggedNode.Text}, TargetNode = {targetNode?.Text}");
+
+                vm.ReorderItems(draggedNode, targetNode, _isDropAbove);
+
+                // Report success.
+                e.DragEffects = DragDropEffects.Move;
+                e.Handled = true;
+
+                RemoveInsertionLine();
+
+                PlaylistListBox.SelectedItems?.Clear();
+                /*
                 if (!ReferenceEquals(draggedNode, targetNode))
                 {
                     // Success.
@@ -336,6 +367,7 @@ public partial class MainWindow : Window
 
                     RemoveInsertionLine();
                 }
+                */
             }
 
             e.Handled = true;
@@ -481,8 +513,8 @@ public partial class MainWindow : Window
 
     private void PlaylistListBox_PointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        _isPressedAndMoved = false;
-        _isPressed = false;
+        //_isPressedAndMoved = false;
+        //_isPressed = false;
     }
 
     private void PlaylistListBox_PointerReleased(object? sender, PointerReleasedEventArgs e)
