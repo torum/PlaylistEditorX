@@ -8,7 +8,5 @@
 	<Application.Styles>
 		<sty:FluentAvaloniaTheme PreferUserAccentColor="True" UseSystemFontOnWindows="True" />
 		<StyleInclude Source="avares://PlaylistEditorX/Styles/Styles.axaml" />
-
-		
 	</Application.Styles>
 </Application>

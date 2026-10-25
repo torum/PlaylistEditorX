@@ -54,7 +54,7 @@ public partial class MainWindow : Window
         }
         else
         {
-            this.Position = new PixelPoint(100, 100);
+            this.Position = new PixelPoint(0, 0);
         }
 
         if (mw.Height >= 120)
@@ -226,6 +226,7 @@ public partial class MainWindow : Window
                 e.DragEffects = DragDropEffects.Move;
                 e.Handled = true;
 
+                /*
                 // Determine whether to draw the line above or below the item
                 var positionInItem = e.GetPosition(targetListBoxItem);
                 double itemHeight = targetListBoxItem.Bounds.Height;
@@ -245,6 +246,25 @@ public partial class MainWindow : Window
                     insertionY = targetListBoxItem.Bounds.Y + itemHeight;
                     _isDropAbove = false;
                 }
+                */
+
+                var positionInItem = e.GetPosition(targetListBoxItem);
+                var itemHeight = targetListBoxItem.Bounds.Height;
+                _isDropAbove = positionInItem.Y < itemHeight / 2;
+
+                var itemEdge = new Point(0, _isDropAbove ? 0 : itemHeight);
+                var edgeInListBox = targetListBoxItem.TranslatePoint(itemEdge, PlaylistListBox);
+
+                if (edgeInListBox is null)
+                {
+                    RemoveInsertionLine();
+                    return;
+                }
+
+                ShowInsertionLine(edgeInListBox.Value.Y);
+
+
+
                 /*
                 
                 // Get the bounding box of the item being hovered over
@@ -265,7 +285,7 @@ public partial class MainWindow : Window
                 */
 
                 // Trigger your adorner update method
-                ShowInsertionLine(insertionY);
+                //ShowInsertionLine(insertionY);
 
                 return;
             }
